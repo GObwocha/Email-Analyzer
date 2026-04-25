@@ -1,0 +1,4 @@
+# Node.js projects use package.json for dependencies, but here are the main requirements based on your index.js:
+
+node-cron
+dotenv
