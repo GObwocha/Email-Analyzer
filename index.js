@@ -1,24 +1,46 @@
-import "dotenv/config";
+// ============================================================
+//  SCHOOL EMAIL DIGEST — University of Nairobi
+//  Student: scs325952025@students.uonbi.ac.ke
+//  Digest → ondiekiobwocha@gmail.com
+//
+//  Schedule:
+//    Mon–Fri : 8 AM, 1 PM, 6 PM (EAT)
+//    Saturday: No emails
+//    Sunday  : 6 PM only (EAT)
+// ============================================================
+//
+//  SETUP INSTRUCTIONS (one-time, ~5 min):
+//  1. Go to https://script.google.com
+//     → Sign in with your SCHOOL email
+//  2. New Project → paste this whole script
+//  3. Replace "YOUR_GEMINI_API_KEY_HERE" with your free key
+//     → Get it at: https://aistudio.google.com → "Get API Key"
+//  4. Save (Ctrl+S) → dropdown → "setupTriggers" → ▶ Run
+//  5. Authorize permissions when prompted → Done!
+//
+// ============================================================
 
 const CONFIG = {
-  personalEmail : process.env.personalEmail,
-  schoolEmail   : process.env.schoolEmail,
-  geminiApiKey  : process.env.geminiApiKey,
-  timezone      : process.env.timezone,
-  uniDomain     : process.env.uniDomain,
-  studentDomain : process.env.studentDomain,
+  personalEmail : "personalemail@domain.com",
+  schoolEmail   : "school@uniDomain.com",
+  geminiApiKey  : PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY'),
+  timezone      : "Africa/Nairobi",
+  uniDomain     : "uniDomain",
+  studentDomain : "studentDomain",
 
   // ── Keywords (subject OR body must contain one of these) ──
-  keywords: process.env.keywords,
-  importantSenders: process.env.importantSenders
+  keywords: [ ],// Include all keywords that may inform your relevant emails
+
+  // ── Important senders (always included, regardless of content) ──
+  importantSenders: [] // Include all your important senders
 };
 
-
+// ============================================================
 //  DAY-OF-WEEK GUARD
 //  Saturday  → never send
 //  Sunday    → only at the 6 PM trigger (hour >= 17)
 //  Mon–Fri   → always (8 AM, 1 PM, 6 PM)
-
+// ============================================================
 function shouldRunNow() {
   const now     = new Date();
   const day     = now.toLocaleDateString("en-US", { timeZone: CONFIG.timezone, weekday: "long" });
@@ -39,27 +61,15 @@ function shouldRunNow() {
 }
 
 
-
+// ============================================================
 //  MAIN FUNCTION — triggered at 8 AM, 1 PM, 6 PM daily
-
-const fs = require('fs');
-const path = require('path');
-
+// ============================================================
 function sendEmailDigest() {
   if (!shouldRunNow()) return;
 
-  const now = new Date();
-  const propsPath = path.join(__dirname, 'scriptProperties.json');
-  let properties = {};
-  if (fs.existsSync(propsPath)) {
-    try {
-      properties = JSON.parse(fs.readFileSync(propsPath, 'utf-8'));
-    } catch (e) {
-      console.error('Failed to read scriptProperties.json:', e);
-      properties = {};
-    }
-  }
-  const lastRun = properties.lastRun;
+  const now        = new Date();
+  const properties = PropertiesService.getScriptProperties();
+  const lastRun    = properties.getProperty("lastRun");
 
   // First-ever run: look back 6 hours
   const lastRunDate = lastRun
@@ -67,12 +77,7 @@ function sendEmailDigest() {
     : new Date(now.getTime() - 6 * 60 * 60 * 1000);
 
   const relevantEmails = getRelevantEmails(lastRunDate, now);
-  properties.lastRun = now.toISOString();
-  try {
-    fs.writeFileSync(propsPath, JSON.stringify(properties, null, 2));
-  } catch (e) {
-    console.error('Failed to write scriptProperties.json:', e);
-  }
+  properties.setProperty("lastRun", now.toISOString());
 
   if (relevantEmails.length === 0) {
     console.log("No relevant emails since " + lastRunDate + ". No digest sent.");
@@ -84,13 +89,13 @@ function sendEmailDigest() {
 }
 
 
-
+// ============================================================
 //  FETCH & FILTER EMAILS
-
+// ============================================================
 function getRelevantEmails(since, now) {
   const sinceStr = Utilities.formatDate(since, "GMT", "yyyy/MM/dd");
   const query    = `in:inbox after:${sinceStr} -label:sent`;
-  const threads  = GmailApp.search(query, 0, 100);
+  const threads  = GmailApp.search(query, 0, 50);
 
   const relevant = [];
   const seenIds  = new Set();
@@ -115,9 +120,9 @@ function getRelevantEmails(since, now) {
 }
 
 
-
+// ============================================================
 //  RELEVANCE CHECKER
-
+// ============================================================
 function isRelevant(message) {
   const rawFrom   = message.getFrom();
   const fromLower = rawFrom.toLowerCase();
@@ -163,9 +168,58 @@ function isRelevant(message) {
   return false;
 }
 
+// ============================================================
+//  AI SUMMARY via Gemini 1.5 Flash (Free tier) - DEBUG VERSION
+// ============================================================
+// function getAISummary(from, subject, body) {
+//   if (!CONFIG.geminiApiKey || CONFIG.geminiApiKey === "YOUR_GEMINI_API_KEY_HERE") {
+//     return "⚠️ Add your Gemini API key to enable AI summaries.";
+//   }
 
+//   try {
+//     const prompt =
+//       `You are a concise assistant summarizing university emails for a Year 1 Computer Science student at the University of Nairobi.\n` +
+//       `Summarize the following email in exactly 2–3 sentences. Highlight: key information, deadlines, action items, or opportunities.\n\n` +
+//       `From: ${from}\nSubject: ${subject}\n\nEmail Body:\n${body.substring(0, 3000)}`;
+
+//     // The current, active model
+//     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${CONFIG.geminiApiKey}`;
+
+//     const payload = {
+//       contents: [{ parts: [{ text: prompt }] }],
+//       generationConfig: { maxOutputTokens: 180, temperature: 0.2 }
+//     };
+
+//     const res = UrlFetchApp.fetch(url, {
+//       method: "POST",
+//       contentType: "application/json",
+//       payload: JSON.stringify(payload),
+//       muteHttpExceptions: true // We keep this true so it doesn't crash the whole script
+//     });
+
+//     const rawResponse = res.getContentText();
+//     const data = JSON.parse(rawResponse);
+
+//     // ── DEBUG CHECK: Did Google send an error object instead of a summary? ──
+//     if (data.error) {
+//       console.error("GEMINI API ERROR: " + data.error.message);
+//       return `⚠️ API Error: ${data.error.message}`; // This will print directly in your email!
+//     }
+
+//     // If no error, parse normally
+//     return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+//       || "Summary could not be generated (No candidates found).";
+
+//   } catch (e) {
+//     console.error("Script exception: " + e.message);
+//     return `⚠️ Script Error: ${e.message}`;
+//   }
+// }
+
+
+// ============================================================
 //  AI SUMMARY via Gemini 3 Flash Preview (Free tier)
-
+// ============================================================
 function getAISummary(from, subject, body) {
   if (!CONFIG.geminiApiKey || CONFIG.geminiApiKey === "YOUR_GEMINI_API_KEY_HERE") {
     return "⚠️ Add your Gemini API key to enable AI summaries.";
@@ -177,11 +231,11 @@ function getAISummary(from, subject, body) {
       `Summarize the following email in exactly 2–3 sentences. Highlight: key information, deadlines, action items, or opportunities.\n\n` +
       `From: ${from}\nSubject: ${subject}\n\nEmail Body:\n${body.substring(0, 3000)}`;
 
-    const url = process.env.url;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${CONFIG.geminiApiKey}`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 180, temperature: 0.2 }
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
     };
 
     Utilities.sleep(15000);
@@ -204,9 +258,9 @@ function getAISummary(from, subject, body) {
 }
 
 
-
+// ============================================================
 //  BUILD & SEND THE DIGEST EMAIL
-
+// ============================================================
 function sendDigest(emails, now) {
   const dateLabel = Utilities.formatDate(now, CONFIG.timezone, "EEEE, MMMM dd, yyyy");
   const timeLabel = Utilities.formatDate(now, CONFIG.timezone, "h:mm a 'EAT'");
@@ -216,10 +270,10 @@ function sendDigest(emails, now) {
   function senderTag(rawFrom) {
     const m    = rawFrom.match(/<([^>]+)>/);
     const addr = (m ? m[1] : rawFrom).toLowerCase();
-    if (addr.endsWith("@students.uonbi.ac.ke"))
+    if (addr.endsWith("@studentDomain"))
       return `<span style="background:#e6f4ea;color:#1a7340;border:1px solid #a8d5b5;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;">&#x1F468;&#x200D;&#x1F393; Fellow Student</span>`;
 
-    if (!addr.endsWith("@uonbi.ac.ke"))
+    if (!addr.endsWith("@uniDomain"))
       return `<span style="background:#fff3e0;color:#b45309;border:1px solid #fcd9a0;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;">&#x1F310; External</span>`;
 
     return `<span style="background:#e8f0fe;color:#1a56db;border:1px solid #b3c6f9;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;">&#x1F3EB; University</span>`;
@@ -272,6 +326,9 @@ function sendDigest(emails, now) {
     const subject = msg.getSubject() || "(No Subject)";
     const date    = Utilities.formatDate(msg.getDate(), CONFIG.timezone, "EEE, MMM dd 'at' h:mm a 'EAT'");
     const body    = msg.getPlainBody();
+    const msgId = msg.getId();
+    const msgLink = "https://mail.google.com/mail/u/2/#inbox/" + msgId;
+    const linkHtml = `<p><a href="${msgLink}" target="_blank">&#x1F517; Read the full thread in Gmail</a></p><hr>`
     
     // ONE single API call per email!
     const summary = getAISummary(from, subject, body);
@@ -289,6 +346,7 @@ function sendDigest(emails, now) {
     <div class="summary">
       <div class="ai-label">&#x1F916; AI Summary</div>
       <p>${escapeHtml(summary)}</p>
+      ${linkHtml}
     </div>
   </div>`;
 
@@ -325,9 +383,9 @@ function sendDigest(emails, now) {
 }
 
 
-
+// ============================================================
 //  HTML ESCAPE HELPER
-
+// ============================================================
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -335,29 +393,35 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+
+// ============================================================
 //  SETUP TRIGGERS — Run ONCE manually after pasting
-const cron = require('node-cron');
+// ============================================================
+function setupTriggers() {
+  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
 
-// 8 AM Mon–Fri
-cron.schedule('0 8 * * 1-5', () => {
-  sendEmailDigest();
-});
+  // 8 AM daily
+  ScriptApp.newTrigger("sendEmailDigest")
+    .timeBased().atHour(8).nearMinute(0).everyDays(1)
+    .inTimezone(CONFIG.timezone).create();
 
-// 1 PM Mon–Fri
-cron.schedule('0 13 * * 1-5', () => {
-  sendEmailDigest();
-});
+  // 1 PM daily
+  ScriptApp.newTrigger("sendEmailDigest")
+    .timeBased().atHour(13).nearMinute(0).everyDays(1)
+    .inTimezone(CONFIG.timezone).create();
 
-// 6 PM every day, but skip Saturday
-cron.schedule('0 18 * * *', () => {
-  const now = new Date();
-  const day = now.toLocaleDateString('en-US', { timeZone: CONFIG.timezone, weekday: 'long' });
-  if (day !== 'Saturday') {
-    sendEmailDigest();
-  }
-});
+  // 6 PM daily
+  ScriptApp.newTrigger("sendEmailDigest")
+    .timeBased().atHour(18).nearMinute(0).everyDays(1)
+    .inTimezone(CONFIG.timezone).create();
 
+  console.log("✅ Triggers set! Mon–Fri: 8 AM, 1 PM, 6 PM | Saturday: off | Sunday: 6 PM only.");
+}
+
+
+// ============================================================
 //  TEST FUNCTION — Run for an instant digest (last 48 hrs)
+// ============================================================
 function testDigestNow() {
   const now      = new Date();
   const lookback = new Date(now.getTime() - 48 * 60 * 60 * 1000);
