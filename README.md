@@ -28,6 +28,8 @@ SETUP INSTRUCTIONS (one-time, ~5 min):
     → Get it at: https://aistudio.google.com → "Get API Key"
 
     NB: You can use any other API key but modify the code accoringly
+
+   Also, insert your specific details in the CONFIG object and the domains on line 273 and 276 of the copied code
    
-4. Save (Ctrl+S) → dropdown → "setupTriggers" → ▶ Run
-5. Authorize permissions when prompted → Done!
+5. Save (Ctrl+S) → dropdown → "setupTriggers" → ▶ Run
+6. Authorize permissions when prompted → Done!
