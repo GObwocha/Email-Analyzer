@@ -1,7 +1,7 @@
 // ============================================================
-//  SCHOOL EMAIL DIGEST — University of Nairobi
-//  Student: scs325952025@students.uonbi.ac.ke
-//  Digest → ondiekiobwocha@gmail.com
+//  SCHOOL EMAIL DIGEST — School
+//  Student: school@uniDomain.com
+//  Digest → personalemail@domain.com
 //
 //  Schedule:
 //    Mon–Fri : 8 AM, 1 PM, 6 PM (EAT)
@@ -24,7 +24,7 @@ const CONFIG = {
   personalEmail : "personalemail@domain.com",
   schoolEmail   : "school@uniDomain.com",
   geminiApiKey  : PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY'),
-  timezone      : "Africa/Nairobi",
+  timezone      : "timezone",
   uniDomain     : "uniDomain",
   studentDomain : "studentDomain",
 
